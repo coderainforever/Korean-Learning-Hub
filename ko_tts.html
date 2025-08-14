@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Korean Learning App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Nanum+Gothic:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation; /* Prevents double-tap zoom on mobile */
+        }
+        .korean-text {
+            font-family: 'Nanum Gothic', sans-serif;
+        }
+        /* Custom styles for the flashcard flip animation */
+        .flashcard-inner {
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+        }
+        .flashcard.flipped .flashcard-inner {
+            transform: rotateY(180deg);
+        }
+        .flashcard-front, .flashcard-back {
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }
+        .flashcard-back {
+            transform: rotateY(180deg);
+        }
+        /* Style for quiz options */
+        .quiz-option {
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        .quiz-option.correct {
+            background-color: #d1fae5; /* Tailwind green-100 */
+            border-color: #10b981; /* Tailwind green-500 */
+        }
+        .quiz-option.incorrect {
+            background-color: #fee2e2; /* Tailwind red-100 */
+            border-color: #ef4444; /* Tailwind red-500 */
+        }
+        /* Style for matching game cards */
+        .match-card {
+            transform-style: preserve-3d;
+            transition: transform 0.5s;
+            cursor: pointer;
+        }
+        .match-card.flipped {
+            transform: rotateY(180deg);
+        }
+        .match-card.matched {
+            transform: rotateY(180deg);
+            opacity: 0.5;
+            cursor: default;
+        }
+        .match-card-front, .match-card-back {
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }
+        .match-card-back {
+            transform: rotateY(180deg);
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 flex items-center justify-center min-h-screen p-4">
+
+    <div id="app" class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-xl p-6 md:p-8">
+
+        <!-- Main Menu View -->
+        <div id="main-menu" class="text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900 mb-2">Korean Learning Hub</h1>
+            <p class="text-slate-500 mb-8">Select a mode to start learning!</p>
+
+            <div id="progress-tracker" class="mb-8">
+                <p class="font-semibold mb-2">Your Progress</p>
+                <div class="w-full bg-slate-200 rounded-full h-4">
+                    <div id="progress-bar" class="bg-blue-500 h-4 rounded-full transition-all duration-500" style="width: 0%;"></div>
+                </div>
+                <p id="progress-text" class="text-sm text-slate-600 mt-2">0 / 0 phrases learned</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button onclick="startFlashcards()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-4 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                    <span class="text-xl">📚</span><br>Flashcards
+                </button>
+                <button onclick="startQuiz()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                    <span class="text-xl">❓</span><br>Quiz
+                </button>
+                <button onclick="startMatchingGame()" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-4 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                    <span class="text-xl">🎲</span><br>Matching Game
+                </button>
+            </div>
+             <div class="mt-8 text-center">
+                <button onclick="resetProgress()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg text-sm">
+                    Reset Progress
+                </button>
+            </div>
+        </div>
+
+        <!-- Flashcards View -->
+        <div id="flashcards-view" class="hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">Flashcards</h2>
+                <button onclick="showMenu()" class="text-blue-500 hover:underline">Back to Menu</button>
+            </div>
+            <div id="flashcard-container" class="relative w-full h-64 md:h-80 perspective-1000">
+                <div class="flashcard w-full h-full" onclick="this.classList.toggle('flipped')">
+                    <div class="flashcard-inner relative w-full h-full text-center">
+                        <div class="flashcard-front absolute w-full h-full bg-white border-2 border-slate-200 rounded-lg flex items-center justify-center p-4">
+                            <p id="flashcard-english" class="text-2xl md:text-3xl font-semibold"></p>
+                        </div>
+                        <div class="flashcard-back absolute w-full h-full bg-blue-50 border-2 border-blue-200 rounded-lg flex flex-col items-center justify-center p-4">
+                            <p id="flashcard-korean" class="korean-text text-3xl md:text-4xl font-bold mb-4"></p>
+                            <button id="flashcard-speak-btn" class="p-3 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-between items-center mt-6">
+                <button onclick="prevCard()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 px-6 rounded-lg transition">&larr; Prev</button>
+                <p id="flashcard-counter" class="text-slate-600 font-medium"></p>
+                <button onclick="nextCard()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 px-6 rounded-lg transition">Next &rarr;</button>
+            </div>
+             <div class="text-center mt-4">
+                <button id="mark-learned-btn" onclick="toggleLearned()" class="bg-green-500 text-white font-bold py-2 px-5 rounded-lg">Mark as Learned</button>
+            </div>
+        </div>
+
+        <!-- Quiz View -->
+        <div id="quiz-view" class="hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">Quiz</h2>
+                <button onclick="showMenu()" class="text-blue-500 hover:underline">Back to Menu</button>
+            </div>
+            <div id="quiz-content">
+                <div class="flex justify-between text-lg font-semibold mb-4">
+                    <p id="quiz-counter"></p>
+                    <p id="quiz-score"></p>
+                </div>
+                <div class="bg-slate-100 p-6 rounded-lg text-center mb-6">
+                    <p id="quiz-korean" class="korean-text text-3xl font-bold"></p>
+                     <button id="quiz-speak-btn" class="mt-3 p-2 rounded-full bg-slate-200 text-slate-600 hover:bg-slate-300 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                    </button>
+                </div>
+                <div id="quiz-options" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </div>
+            <div id="quiz-results" class="hidden text-center">
+                <h3 class="text-3xl font-bold mb-4">Quiz Complete!</h3>
+                <p id="final-score" class="text-xl mb-6"></p>
+                <button onclick="startQuiz()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg">Play Again</button>
+            </div>
+        </div>
+
+        <!-- Matching Game View -->
+        <div id="matching-game-view" class="hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">Matching Game</h2>
+                <button onclick="showMenu()" class="text-blue-500 hover:underline">Back to Menu</button>
+            </div>
+            <div class="flex justify-between items-center mb-4">
+                <p class="text-lg">Moves: <span id="moves-counter">0</span></p>
+                <button onclick="startMatchingGame()" class="bg-purple-500 text-white px-4 py-2 rounded-lg">New Game</button>
+            </div>
+            <div id="matching-grid" class="grid grid-cols-4 gap-2 md:gap-4">
+                <!-- Game cards will be inserted here by JS -->
+            </div>
+            <div id="game-win-message" class="hidden text-center mt-6">
+                <h3 class="text-3xl font-bold text-green-500 mb-4">You Win!</h3>
+                <p id="win-stats" class="text-xl mb-6"></p>
+                <button onclick="startMatchingGame()" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg">Play Again</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        // --- DATA ---
+        const csvData = `Index,English,Korean
+1,That makes sense.,그거 말 되네
+2,I’ll be there in a minute.,금방 갈게
+3,You’ve got to be kidding me.,너 지금 농담하는 거지?
+4,Is everything okay?,다 괜찮아?
+5,I’m on my way.,지금 가는 중이야
+6,It’s not a big deal.,별일 아니야
+7,Let’s keep in touch.,계속 연락하자
+8,I haven’t decided yet.,아직 결정 못 했어
+9,I’ll think about it.,생각해볼게
+10,That’s a good point.,좋은 지적이야
+11,It’s totally up to you.,완전히 네 선택이야
+12,Let’s take a break.,잠깐 쉬자
+13,I didn’t mean it.,그런 뜻은 아니었어
+14,I’m in the middle of something.,나 지금 뭐 좀 하고 있어
+15,What’s going on?,무슨 일이야?
+16,I’ll handle it.,내가 처리할게
+17,Let me check.,확인해볼게
+18,It happens.,그럴 수도 있지
+19,Don’t take it personally.,개인적으로 받아들이지 마
+20,Can you give me a hand?,나 좀 도와줄 수 있어?
+21,We’ll see.,두고 보자
+22,It’s worth a try.,시도해볼 만해
+23,That’s not the point.,그게 요점이 아니야
+24,I couldn’t agree more.,전적으로 동의해
+25,Let me be clear.,분명히 말할게
+26,You’re getting better.,점점 나아지고 있어
+27,It’s up to you.,그건 네가 결정해
+28,That’s not fair.,그건 불공평해
+29,It’s not your fault.,네 잘못 아니야
+32,I appreciate it.,고마워요
+33,I can’t wait.,기다릴 수 없어 (너무 기대돼)
+34,Don’t worry about it.,걱정하지 마
+35,That’s what I’m saying.,내가 바로 그 말 하려고 했어
+36,I’m not sure yet.,아직 잘 모르겠어
+37,Let’s not jump to conclusions.,성급하게 판단하지 말자
+38,You’ve got this.,넌 할 수 있어
+39,I’ll take care of it.,내가 처리할게
+40,Don’t push yourself too hard.,무리하지 마
+41,I didn’t see that coming.,그건 예상 못 했어
+42,Can I get back to you on that?,그건 나중에 다시 말해도 될까?
+43,I owe you one.,신세졌어
+44,Let’s move on.,다음으로 넘어가자
+45,That’s enough for now.,지금은 이 정도면 돼
+46,I’ll keep that in mind.,명심할게
+47,Sorry for the confusion.,혼란을 드려서 죄송해요
+48,You nailed it.,완벽하게 해냈어
+49,I’m proud of you.,네가 자랑스러워
+50,I’ll make it up to you.,내가 보상할게
+51,Can we talk?,우리 얘기 좀 할 수 있을까?
+52,What’s the matter?,무슨 일이야?
+53,That’s all I need.,그거면 충분해
+54,That’s more like it.,이제 좀 괜찮네
+55,What are you up to?,뭐 하고 있어?
+56,Let me know what you think.,어떻게 생각하는지 알려줘
+57,Let’s figure it out.,함께 해결해보자
+58,You’ve come a long way.,많이 발전했네
+59,I’m happy for you.,정말 잘 됐네
+60,Let’s get started.,시작하자
+61,I’m running late.,나 좀 늦고 있어
+62,It’s not my thing.,그건 내 취향이 아니야
+63,Can you hold on a second?,잠깐만 기다려줄래?
+64,I’ve heard a lot about you.,얘기 많이 들었어요
+65,Let me explain.,설명할게
+66,Don’t mention it.,천만에요 (별말씀을요)
+67,That’s exactly what I needed.,그게 딱 내가 필요하던 거야
+68,I’m working on it.,지금 그거 처리 중이야
+69,Thanks for letting me know.,알려줘서 고마워
+70,I didn’t mean to ignore you.,무시하려던 건 아니었어
+71,Let’s play it by ear.,그때그때 봐서 결정하자
+72,That’s not what I expected.,그건 내가 기대했던 게 아니야
+73,It’s up to us now.,이제 우리에게 달렸어
+74,I’m not in the mood right now.,지금은 그럴 기분이 아니야
+75,Can you make it?,올 수 있어?
+76,I’m not feeling well.,몸이 좀 안 좋아
+77,I’ll be right with you.,곧 도와드릴게요
+78,I’m in a hurry.,나 급해
+79,That works for me.,그거 괜찮아 (좋아)
+80,We’re in the same boat.,우린 같은 처지야
+81,I can’t help it.,어쩔 수 없어
+82,Let’s not make a big deal out of it.,그걸 너무 심각하게 만들지 말자
+83,I’m with you on that.,그 말에 동의해
+84,I’ll pass.,난 사양할게
+85,Is it okay if I sit here?,여기 앉아도 될까요?
+86,Just give me a minute.,잠깐만 시간 줘
+87,Let’s take it slow.,천천히 하자
+88,Can I ask you a favor?,부탁 하나 해도 될까?
+89,That’s not necessary.,그럴 필요 없어
+90,What do you mean by that?,그게 무슨 뜻이야?
+91,Can you give me an example?,예시 하나 들어줄 수 있어?
+92,Do you have any idea how to fix this?,이거 어떻게 고치는지 알아?
+93,What are you trying to say?,무슨 말을 하려는 거야?
+94,How long does it take?,얼마나 걸려?
+95,What’s the best way to do this?,이걸 가장 잘하는 방법이 뭐야?
+96,Are you okay with that?,그거 괜찮아?
+97,What’s wrong with it?,뭐가 문제야?
+98,Do you think it’ll work?,그게 효과 있을 것 같아?
+99,What’s going on over there?,저쪽에서 무슨 일 있어?
+100,What do you want me to do?,내가 뭘 해주길 원해?
+101,How can I help you?,어떻게 도와드릴까요?
+102,Can I be honest with you?,솔직하게 말해도 돼?
+103,Is it okay if I ask you something?,질문 하나 해도 괜찮을까?
+104,Do you mind if I join you?,나도 같이 해도 될까?
+105,Let me make it clear.,분명히 할게
+106,Let me put it this way.,이렇게 말해볼게
+107,Let me ask you something.,질문 하나 할게
+108,Let’s make it quick.,빨리 끝내자
+109,Let’s keep it simple.,간단하게 하자
+110,Let me know what you think.,어떻게 생각하는지 알려줘
+111,Let’s take a look at it together.,같이 한 번 보자
+112,That’s exactly what I needed.,그게 딱 내가 필요하던 거야
+113,That’s not what I meant.,그 말이 아니야
+114,That’s not how it works.,그건 그렇게 되는 게 아니야
+115,That doesn’t make sense.,그건 말이 안 돼
+116,That depends on the situation.,그건 상황에 따라 달라
+117,I’ll take care of it.,내가 처리할게
+118,I’ll let you know as soon as I can.,가능한 빨리 알려줄게
+119,Let me see what I can do.,내가 뭘 할 수 있을지 볼게
+120,I didn’t mean to make you uncomfortable.,불편하게 하려던 건 아니었어
+121,Are you saying that I’m wrong?,지금 내가 틀렸다고 말하는 거야?
+122,Can we talk about this later?,이건 나중에 얘기해도 될까?
+123,Is there anything I can do to help?,내가 도와줄 일 있을까?
+124,Do you know what I mean?,무슨 말인지 알겠어?
+125,I get what you’re saying.,네가 무슨 말 하는지 알겠어
+126,That’s exactly how I feel.,나도 정확히 그렇게 느껴
+127,I’m doing my best.,최선을 다하고 있어
+128,It’s not what it looks like.,보이는 것처럼 그런 게 아니야
+129,I’m not in the right state of mind.,지금 정신이 좀 없어
+130,I need some time to think.,생각할 시간이 좀 필요해
+131,Let’s not talk about that now.,지금 그 얘긴 하지 말자
+132,There’s something I want to tell you.,너한테 말하고 싶은 게 있어
+133,I just want to be alone for a while.,잠깐 혼자 있고 싶어
+134,I’ve been thinking about that too.,나도 그거 생각하고 있었어
+135,I’m not sure if this is a good idea.,이게 좋은 생각인지 잘 모르겠어
+136,I’ve never thought about it that way.,그렇게는 생각해본 적 없었어
+137,I’ll explain everything later.,나중에 다 설명할게
+138,It’s not as bad as it seems.,보이는 것만큼 나쁘진 않아
+139,I didn’t expect this at all.,이건 전혀 예상 못 했어
+140,I’m trying to stay calm.,진정하려고 노력 중이야
+141,That’s not the impression I wanted to give.,그런 인상을 주고 싶었던 건 아니었어
+142,It’s better than nothing.,없는 것보단 낫지
+143,I’m just trying to help.,난 그냥 도우려는 거야
+144,That’s not really up to me.,그건 내가 결정할 수 있는 게 아니야
+145,Can I ask what happened?,무슨 일 있었는지 물어봐도 돼?
+146,I’m open to whatever you decide.,네가 뭘 결정하든 따를게
+147,Let’s try to stay focused.,집중하자
+148,I’ll be honest with you.,솔직히 말할게
+149,I hope that makes sense.,그게 이해가 됐으면 좋겠어
+150,Let’s keep this short and simple.,간단명료하게 하자
+151,I didn’t mean for this to happen.,이런 일이 생기길 바랐던 건 아니야
+152,That’s one way to look at it.,그렇게 볼 수도 있겠네
+153,I’m trying to be patient.,참으려고 노력 중이야
+154,That’s exactly what I was thinking.,나도 딱 그 생각하고 있었어
+155,That’s not how I see it.,난 그렇게 생각하지 않아
+156,Let me finish what I was saying.,내 말 좀 끝까지 들어봐
+157,That’s not what I had in mind.,그건 내가 생각했던 게 아니야
+158,I don’t want to jump to conclusions.,성급하게 결론 내리고 싶진 않아
+159,Let’s get back to the point.,본론으로 돌아가자
+160,I’m not blaming you.,너 탓하려는 건 아니야
+161,Let me know if anything changes.,뭔가 바뀌면 알려줘
+162,I’d rather not talk about it.,그 얘긴 안 하고 싶어
+163,That’s not something I can promise.,그건 내가 장담할 수 있는 게 아니야
+164,I need to be honest with myself.,스스로에게 솔직해져야 해
+165,I don’t want to get into that.,그 얘기까진 하고 싶지 않아
+166,Let’s keep moving forward.,계속 앞으로 나아가자
+167,Can we just drop it?,그 얘긴 그만할 수 있을까?
+168,That’s not what I expected to hear.,그런 말이 나올 줄은 몰랐어
+169,I’d rather do it my way.,나는 내 방식대로 하고 싶어
+170,I’m not here to argue.,논쟁하러 온 건 아니야
+171,I’ll leave it up to you.,그건 너한테 맡길게
+172,That doesn’t sound right.,그건 뭔가 이상한데
+173,It’s hard to say.,뭐라고 말하기 어려워
+174,It’s worth a shot.,한번 해볼 가치는 있어
+175,Let’s agree to move on.,이쯤에서 넘기자
+176,It might be a misunderstanding.,오해일 수도 있어
+177,I’m doing what I can.,내가 할 수 있는 건 다 하고 있어
+178,It’s not entirely your fault.,전적으로 네 잘못은 아니야
+179,I’m glad you brought that up.,그 얘기 꺼내줘서 고마워
+180,I wouldn’t go that far.,그 정도까지는 아니야
+181,That’s one way to look at it.,그렇게 볼 수도 있겠네
+182,I wouldn’t be surprised.,그럴 줄 알았어 (전혀 놀랍지 않아)
+185,I get where you’re coming from.,네 입장은 이해해
+186,That’s easier said than done.,말처럼 쉽진 않아
+187,I’ll believe it when I see it.,직접 보기 전까진 못 믿겠어
+188,Let’s not get ahead of ourselves.,앞서가지 말자 / 너무 앞서 생각하지 말자
+189,I wouldn’t count on it.,그건 기대하지 않는 게 좋을 거야
+192,I’d rather not say.,말하지 않는 게 좋겠어
+193,Let’s just say I’ve had better days.,그냥 좀 안 좋은 하루였어 (직접적 표현 피할 때)
+194,I was under the impression that…,~인 줄 알았어 (오해하거나 착각했을 때)
+195,I wouldn’t take it personally.,그걸 개인적으로 받아들이지 마
+196,Things got a little out of hand.,일이 좀 걷잡을 수 없게 됐어
+197,I have mixed feelings about that.,그거에 대해 마음이 좀 복잡해
+198,It didn’t sit right with me.,그건 마음에 걸렸어
+199,Let’s just agree to disagree.,그냥 서로 다르다는 데 동의하자
+200,It came out of nowhere.,완전히 뜬금없었어
+201,That wasn’t my intention.,그건 내 의도가 아니었어
+202,You have a point.,그 말도 일리 있어
+203,It’s not as straightforward as it seems.,그게 보기보다 단순하진 않아
+204,I can see how that might be confusing.,혼란스러울 수도 있겠네
+205,I was caught off guard.,완전히 당황했어 / 예상 못 했어
+206,That’s a bit much, don’t you think?,좀 심한 거 아니야?
+207,I’m not sure how I feel about that.,그거에 대해 어떻게 느껴야 할지 모르겠어
+208,That’s not how I remember it.,내 기억엔 그렇지 않아
+209,Let’s keep things in perspective.,전체적인 관점에서 보자
+210,I wouldn’t say that exactly.,꼭 그렇게 말할 수는 없어
+211,I can’t speak for everyone, but…,모두의 의견은 아니지만, 나는…
+212,That’s not quite what I meant.,그건 내가 말하려던 건 아니야
+214,That’s definitely worth thinking about.,그건 확실히 생각해볼 가치가 있어
+215,That’s a tough one.,그건 좀 애매하네 / 어려운 문제야
+216,I’ll give it some thought.,생각 좀 해볼게
+217,There’s more to it than that.,그게 다는 아니야
+218,Let’s not dwell on the past.,과거에 집착하지 말자
+219,That’s not how it works in real life.,실제로는 그렇게 안 돼
+220,That sounds a bit off.,그건 좀 이상하게 들려
+221,Let’s keep our options open.,여러 가능성을 열어두자
+222,I know it’s easier said than done.,말은 쉽지만 실행은 어려운 거 알아
+223,I don’t want to jump to any conclusions.,성급하게 결론 내리고 싶지 않아
+224,I can’t say for sure.,확실하다고는 말 못 하겠어
+226,That doesn’t really add up.,그건 앞뒤가 잘 안 맞아
+228,Let’s not get carried away.,지나치게 흥분하지 말자
+229,I wouldn’t read too much into that.,너무 깊이 생각하지 마
+230,That’s not necessarily a bad thing.,꼭 나쁜 건 아니야
+231,There’s no point in arguing.,말싸움해봐야 소용없어
+232,That’s something to keep in mind.,그건 명심해야 할 부분이야
+234,You might be on to something.,뭔가 중요한 걸 짚은 것 같아
+235,I hope I’m making sense.,내 말이 이해가 됐으면 좋겠어
+236,Let’s not overthink it.,너무 복잡하게 생각하지 말자
+237,That’s a fair observation.,그건 타당한 지적이야
+238,I appreciate your perspective.,네 관점을 존중해
+239,Let’s circle back to that later.,그 얘기는 나중에 다시 하자
+241,It’s not the time or place for that.,지금은 그 얘기할 때가 아니야
+242,Let’s not blow things out of proportion.,일을 너무 과장해서 생각하진 말자
+243,That’s a bit of a grey area.,그건 좀 애매한 부분이야
+244,I’m doing my best to stay neutral.,나는 최대한 중립적인 입장을 유지하려고 해
+245,Let’s put a pin in that for now.,그건 일단 보류하자
+246,I wouldn’t go so far as to say that.,굳이 그렇게까지 말하고 싶진 않아
+247,Let’s agree that we see things differently.,우리가 다르게 본다는 것에 동의하자
+248,That’s something we’ll have to deal with eventually.,언젠가는 우리가 해결해야 할 일이야
+249,That’s a bit outside my comfort zone.,그건 내 성향과는 좀 달라
+250,I’m trying to be as objective as possible.,가능한 한 객관적으로 보려고 해
+252,That’s a conversation for another time.,그건 나중에 이야기하자
+253,I wish I had a better answer for you.,더 나은 대답을 해주고 싶어
+254,That’s something I need to think through.,그건 좀 더 깊이 생각해봐야 해
+255,Let’s not turn this into something it’s not.,이걸 다른 문제로 키우진 말자
+256,I get the impression that something’s bothering you.,뭔가 마음에 걸리는 게 있는 것 같아 보여
+257,Let’s not make assumptions.,추측으로 판단하지 말자
+258,I’m trying to see the bigger picture.,전체적인 상황을 보려고 노력 중이야
+259,There are a lot of moving parts.,변수가 많아
+260,I didn’t mean to come across that way.,그렇게 비치려던 건 아니었어
+261,Let’s be realistic about this.,현실적으로 보자
+262,It’s not a black-and-white issue.,그건 흑백논리로 나눌 수 있는 문제가 아니야
+263,I’d like to hear your side of the story.,네 입장도 들어보고 싶어
+264,I hope you don’t take this the wrong way.,기분 나쁘게 듣진 않았으면 해
+265,We’re getting off track here.,이야기가 본론에서 벗어나고 있어
+267,Let’s not rush to judgment.,성급하게 판단하진 말자
+268,That’s not sound like a sustainable solution.,그건 지속 가능한 해결책 같진 않아
+269,It’s okay to agree to disagree.,서로 다르게 생각해도 괜찮아
+270,Let’s be honest — it didn’t go as planned.,솔직히 말해서, 계획대로 되지 않았어
+272,I just don’t think it’s the right time.,지금은 적절한 시기가 아닌 것 같아
+273,It’s important that we stay on the same page.,우리가 같은 생각을 공유하는 게 중요해
+274,That’s something we should revisit later.,그건 나중에 다시 논의하자
+275,I’m not sure that’s the best approach.,그게 최선의 접근법인지는 모르겠어
+276,Let’s try not to overreact right now.,지금은 과민 반응하지 말자
+278,That’s not how I intended it to sound.,그렇게 들리게 하려던 건 아니야
+279,I’m open to hearing other opinions.,다른 의견도 들을 준비가 돼 있어
+280,Let’s not lose sight of what really matters.,진짜 중요한 걸 놓치지 말자
+281,It’s hard to be sure without more context.,상황을 더 알아야 확실히 말할 수 있어
+282,I can tell you put a lot of thought into this.,이 일에 신경 많이 쓴 거 알아
+283,Let’s take a step back and reassess.,한 발 물러서서 다시 생각해보자
+284,That’s something we’ll need to handle carefully.,그건 신중하게 다뤄야 해
+285,You’ve raised a very interesting point.,흥미로운 지점을 짚었네
+286,There’s no harm in thinking it through again.,다시 생각해본다고 손해 볼 건 없잖아
+287,We need to consider the long-term effects.,장기적인 영향을 고려해야 해
+288,I think we’re getting a bit off topic.,우리 지금 주제에서 좀 벗어나고 있어
+289,That might be more complicated than it seems.,그건 보기보다 복잡할 수도 있어
+291,We’ll just have to wait and see.,일단 두고 봐야겠지
+292,I’d rather be cautious than regret it later.,나중에 후회하는 것보단 조심하는 게 낫지
+293,Let’s focus on solutions, not problems.,문제가 아니라 해결책에 집중하자
+294,It’s a sensitive issue, so let’s tread carefully.,민감한 문제니까 조심스럽게 접근하자
+295,I can see how this could be misinterpreted.,이게 오해를 살 수도 있겠네
+296,There’s a lot we still don’t know.,우리가 아직 모르는 게 많아
+297,It’s a fine line, and we need balance.,그건 아슬아슬한 경계야, 균형이 필요해
+298,I want to make sure we’re on the same page.,우리가 같은 생각을 하고 있는지 확인하고 싶어
+299,Thanks for being upfront about it.,솔직하게 말해줘서 고마워
+300,I'm afraid that I can't help you.,유감이지만 널 도와줄 수 없어
+301,It turned out that he was right.,알고 보니 그가 맞았어
+302,I wonder if she’s okay.,그녀가 괜찮은지 궁금해
+303,What if we get caught?,우리 들키면 어떡하지?
+304,I'll support you no matter what.,어떤 일이 있어도 널 지지할게
+305,I wish I could fly.,날 수 있다면 좋을 텐데
+306,It's too bad that you missed it.,네가 그걸 놓쳤다니 안타깝다
+307,I'm dying to see that movie.,그 영화 너무 보고 싶어 죽겠어
+308,There's no way he did that.,그가 그랬을 리 없어
+309,I'm not sure what to say.,무슨 말을 해야 할지 모르겠어
+310,You don’t have to worry.,걱정할 필요 없어
+311,How do you know my name?,내 이름을 어떻게 알아?
+312,Do you think it’s true? I guess so.,그게 사실이라고 생각해? 그런 것 같아
+313,You misunderstood me. That’s not what I meant.,내 말 오해했어. 그 말이 아니야
+315,It's not like I hate you.,너를 미워하는 것도 아니잖아
+316,That's why I called you.,그래서 너한테 전화한 거야
+317,Just because it's expensive doesn't mean it's good.,비싸다고 해서 좋은 건 아니야
+318,Can I ask you something?,뭐 좀 물어봐도 돼?
+319,Let me think about it.,생각 좀 해볼게
+320,It’s kind of hard to explain.,설명하기 좀 어려워
+321,I didn’t catch that. Can you say it again?,잘 못 들었어. 다시 말해줄래?
+322,I'm not sure if he's coming.,그가 올지 잘 모르겠어
+323,Can you tell me how to get there?,거기 어떻게 가는지 말해줄래?
+324,Do you want me to call her?,내가 그녀에게 전화해줄까?
+325,I'm looking forward to meeting you.,너를 만나는 걸 기대하고 있어
+326,I'm thinking about quitting my job.,직장을 그만둘까 생각 중이야
+327,Would you like to join us?,우리랑 함께할래?
+328,Let me know if you need anything.,필요한 거 있으면 말해줘
+329,As far as I know, he's single.,내가 알기로 그는 솔로야
+330,I have no idea why she’s upset.,왜 그녀가 화났는지 전혀 몰라
+331,I don't feel like studying today.,오늘은 공부할 기분이 아니야
+332,It seems like it’s going to rain.,비가 올 것 같아
+335,You know what? I quit.,있잖아? 나 그만둘 거야
+336,How come you didn’t call me?,왜 나한테 전화 안 했어?
+337,What I do is none of your business.,내가 뭘 하든 네 알 바 아니야
+338,I can’t believe that he said that.,그가 그런 말을 했다니 믿을 수 없어
+339,What do you think about this idea?,이 아이디어에 대해 어떻게 생각해?
+340,It doesn’t matter who did it.,누가 했는지는 중요하지 않아
+341,I’m not in the mood for jokes.,농담할 기분 아니야
+342,I'm used to waking up early.,나는 일찍 일어나는 데 익숙해
+343,I'm getting used to city life.,도시 생활에 익숙해지고 있어
+344,I didn’t mean to hurt you.,널 다치게 하려던 건 아니었어
+345,That’s what I was thinking too.,나도 그 생각하고 있었어
+346,Are you sure about this?,이거 정말 확실해?
+347,Do whatever you want. It's up to you.,네가 하고 싶은 대로 해. 너한테 달렸어
+348,Dinner at 7? That sounds good.,7시에 저녁? 좋아
+349,I'm sorry for being late.,늦어서 미안해
+350,Thanks for helping me.,도와줘서 고마워
+351,That reminds me of my trip to Italy.,그 말 들으니 내 이탈리아 여행이 생각나
+352,Can you give me a hand with this?,이거 좀 도와줄 수 있어?
+353,I’m running a bit late.,나 조금 늦을 것 같아.
+354,Let me get back to you on that.,그것에 대해서 다시 알려줄게.
+355,I’m not feeling well today.,오늘 몸이 좀 안 좋아.
+356,Could you speak a little slower?,좀 천천히 말해줄래?
+357,That sounds like a great idea.,그거 좋은 생각 같아.
+358,I’m looking forward to it.,그거 기대하고 있어.
+359,I didn’t catch what you said.,무슨 말인지 못 들었어.
+361,I’m sorry for the inconvenience.,불편을 드려 죄송합니다.
+362,What do you think about this?,이거 어떻게 생각해?
+363,I’m not sure about that.,그건 잘 모르겠어.
+364,Let’s keep in touch.,계속 연락하자.
+365,I’ll be there in 10 minutes.,10분 후에 도착할 거야.
+366,Can I ask you a question?,질문해도 될까?
+368,Do you have any recommendations?,추천할 만한 거 있어?
+369,I’d like to make a reservation.,예약하고 싶어요.
+370,Can you help me find this?,이거 찾는 거 도와줄래?
+371,I’m sorry, I didn’t mean to.,미안해, 일부러 그런 건 아니야.
+372,How much does this cost?,이거 얼마예요?
+373,Where is the nearest subway station?,가장 가까운 지하철역이 어디예요?
+374,Can I try this on?,이거 입어봐도 돼?
+375,I’m here on vacation.,여행 왔어요.
+376,What time does the store close?,가게 몇 시에 닫아요?
+377,I’m not sure about that.,그건 잘 모르겠어.
+378,Could you help me with this?,이거 좀 도와줄 수 있어?
+379,Let me check and get back to you.,확인해보고 다시 알려줄게.
+380,I’ll be there in a minute.,금방 갈게.
+381,That sounds good to me.,좋은 것 같아.
+382,Can you explain that again?,다시 설명해 줄 수 있어?
+383,I’m looking forward to it.,기대하고 있어.
+384,Sorry, I didn’t catch that.,미안, 못 들었어.
+385,Can you speak more slowly?,좀 천천히 말해 줄래?
+386,I agree with you.,너에게 동의해.
+387,What do you think about this?,이거 어떻게 생각해?
+388,I’m afraid I can’t.,미안하지만 못 할 것 같아.
+389,Let’s keep in touch.,계속 연락하자.
+390,I’m just browsing, thanks.,그냥 둘러보고 있어, 고마워.
+392,I’d like to make a reservation.,예약하고 싶어.
+393,Can you show me where it is?,어디 있는지 알려줄래?
+394,I’m sorry for the inconvenience.,불편을 드려 죄송합니다.
+395,Can I ask you a question?,질문해도 될까?
+396,What time does it open?,몇 시에 열어요?
+397,Where is the nearest restroom?,가장 가까운 화장실 어디예요?
+398,Can I try this on?,이거 입어봐도 돼?
+399,How much does this cost?,이거 얼마예요?
+400,Do you accept credit cards?,신용카드 받나요?
+401,I’m here on vacation.,여행 왔어요.`;
+
+        // --- STATE MANAGEMENT ---
+        let vocabulary = [];
+        let learnedProgress = {};
+        let currentView = 'main-menu';
+
+        // Flashcards state
+        let currentCardIndex = 0;
+
+        // Quiz state
+        let quizQuestions = [];
+        let currentQuestionIndex = 0;
+        let quizScore = 0;
+        const QUIZ_LENGTH = 10;
+
+        // Matching game state
+        let firstCard = null;
+        let secondCard = null;
+        let lockBoard = false;
+        let matchedPairs = 0;
+        let moves = 0;
+        const MATCH_PAIRS = 8;
+
+        // --- DOM ELEMENTS ---
+        const views = {
+            'main-menu': document.getElementById('main-menu'),
+            'flashcards': document.getElementById('flashcards-view'),
+            'quiz': document.getElementById('quiz-view'),
+            'matching-game': document.getElementById('matching-game-view')
+        };
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+
+        // --- HELPER FUNCTIONS ---
+        /**
+         * Parses the raw CSV data into a structured array of objects.
+         */
+        function parseData() {
+            const lines = csvData.trim().split('\n').slice(1); // Skip header
+            vocabulary = lines.map(line => {
+                const parts = line.split(',');
+                const id = parts[0];
+                const korean = parts.pop();
+                const english = parts.slice(1).join(',');
+                return { id, english, korean };
+            }).filter(item => item.english && item.korean); // Filter out any empty lines
+        }
+
+        /**
+         * Shuffles an array in place.
+         * @param {Array} array The array to shuffle.
+         * @returns {Array} The shuffled array.
+         */
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        /**
+         * Switches the visible view in the app.
+         * @param {string} viewName The name of the view to show.
+         */
+        function switchView(viewName) {
+            currentView = viewName;
+            Object.values(views).forEach(view => view.classList.add('hidden'));
+            if (views[viewName]) {
+                views[viewName].classList.remove('hidden');
+            }
+        }
+
+        // --- PROGRESS TRACKING ---
+        /**
+         * Loads progress from localStorage.
+         */
+        function loadProgress() {
+            const savedProgress = localStorage.getItem('koreanLearningProgress');
+            if (savedProgress) {
+                learnedProgress = JSON.parse(savedProgress);
+            } else {
+                vocabulary.forEach(item => learnedProgress[item.id] = false);
+            }
+            updateProgressUI();
+        }
+
+        /**
+         * Saves the current progress to localStorage.
+         */
+        function saveProgress() {
+            localStorage.setItem('koreanLearningProgress', JSON.stringify(learnedProgress));
+            updateProgressUI();
+        }
+
+        /**
+         * Updates the progress bar and text on the main menu.
+         */
+        function updateProgressUI() {
+            const learnedCount = Object.values(learnedProgress).filter(Boolean).length;
+            const totalCount = vocabulary.length;
+            const percentage = totalCount > 0 ? (learnedCount / totalCount) * 100 : 0;
+
+            progressBar.style.width = `${percentage}%`;
+            progressText.textContent = `${learnedCount} / ${totalCount} phrases learned`;
+        }
+        
+        window.resetProgress = function() {
+            // A simple confirmation dialog. For a real app, a custom modal would be better.
+            const isConfirmed = confirm("Are you sure you want to reset all your learning progress? This cannot be undone.");
+            if (isConfirmed) {
+                localStorage.removeItem('koreanLearningProgress');
+                learnedProgress = {};
+                vocabulary.forEach(item => learnedProgress[item.id] = false);
+                updateProgressUI();
+            }
+        }
+
+        // --- TTS (Text-to-Speech) using Web Speech API ---
+        /**
+         * Uses the browser's built-in speech synthesis to speak the given text.
+         * @param {string} text The text to be spoken in Korean.
+         */
+        function speak(text) {
+            if (!text || typeof window.speechSynthesis === 'undefined') {
+                console.error('Speech Synthesis not supported or no text provided.');
+                // In a real app, you might want to show a small, non-blocking notification.
+                // alert("Sorry, your browser doesn't support text-to-speech.");
+                return;
+            }
+
+            // Cancel any currently speaking utterance to prevent overlap
+            window.speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'ko-KR'; // Specify Korean language
+            utterance.rate = 0.9; // Adjust speech rate for clarity (1 is default)
+            
+            // Attempt to find a native Korean voice for better quality
+            // Note: getVoices() can load asynchronously. This is a simple approach.
+            const voices = window.speechSynthesis.getVoices();
+            const koreanVoice = voices.find(voice => voice.name === 'Google 한국의');
+            if (koreanVoice) {
+                utterance.voice = koreanVoice;
+            }
+
+            window.speechSynthesis.speak(utterance);
+        }
+        
+        // Pre-load voices if the browser requires it on some platforms
+        if (typeof window.speechSynthesis !== 'undefined') {
+            window.speechSynthesis.onvoiceschanged = () => {
+                window.speechSynthesis.getVoices();
+            };
+        }
+
+
+        // --- VIEW CONTROLLERS ---
+        window.showMenu = function() {
+            switchView('main-menu');
+            updateProgressUI();
+        }
+
+        // --- FLASHCARDS LOGIC ---
+        window.startFlashcards = function() {
+            switchView('flashcards');
+            currentCardIndex = 0;
+            displayCard();
+        }
+
+        function displayCard() {
+            const card = vocabulary[currentCardIndex];
+            document.getElementById('flashcard-english').textContent = card.english;
+            document.getElementById('flashcard-korean').textContent = card.korean;
+            document.getElementById('flashcard-counter').textContent = `${currentCardIndex + 1} / ${vocabulary.length}`;
+            
+            const speakBtn = document.getElementById('flashcard-speak-btn');
+            speakBtn.onclick = (e) => {
+                e.stopPropagation(); // Prevent card from flipping when clicking the button
+                speak(card.korean);
+            };
+
+            // Reset flip state
+            document.querySelector('.flashcard').classList.remove('flipped');
+            updateLearnedButton();
+        }
+
+        window.nextCard = function() {
+            currentCardIndex = (currentCardIndex + 1) % vocabulary.length;
+            displayCard();
+        }
+
+        window.prevCard = function() {
+            currentCardIndex = (currentCardIndex - 1 + vocabulary.length) % vocabulary.length;
+            displayCard();
+        }
+        
+        window.toggleLearned = function() {
+            const currentId = vocabulary[currentCardIndex].id;
+            learnedProgress[currentId] = !learnedProgress[currentId];
+            saveProgress();
+            updateLearnedButton();
+        }
+
+        function updateLearnedButton() {
+            const btn = document.getElementById('mark-learned-btn');
+            const currentId = vocabulary[currentCardIndex].id;
+            if (learnedProgress[currentId]) {
+                btn.textContent = 'Mark as Unlearned';
+                btn.classList.remove('bg-green-500');
+                btn.classList.add('bg-yellow-500');
+            } else {
+                btn.textContent = 'Mark as Learned';
+                btn.classList.remove('bg-yellow-500');
+                btn.classList.add('bg-green-500');
+            }
+        }
+
+        // --- QUIZ LOGIC ---
+        window.startQuiz = function() {
+            switchView('quiz');
+            document.getElementById('quiz-content').classList.remove('hidden');
+            document.getElementById('quiz-results').classList.add('hidden');
+            
+            quizScore = 0;
+            currentQuestionIndex = 0;
+            generateQuizQuestions();
+            displayQuestion();
+        }
+
+        function generateQuizQuestions() {
+            const shuffledVocab = shuffle([...vocabulary]);
+            quizQuestions = shuffledVocab.slice(0, QUIZ_LENGTH).map(correctAnswer => {
+                let options = [correctAnswer];
+                while (options.length < 4) {
+                    const randomOption = vocabulary[Math.floor(Math.random() * vocabulary.length)];
+                    if (!options.some(opt => opt.id === randomOption.id)) {
+                        options.push(randomOption);
+                    }
+                }
+                return {
+                    question: correctAnswer.korean,
+                    options: shuffle(options.map(opt => opt.english)),
+                    answer: correctAnswer.english
+                };
+            });
+        }
+
+        function displayQuestion() {
+            if (currentQuestionIndex >= QUIZ_LENGTH) {
+                showQuizResults();
+                return;
+            }
+
+            const question = quizQuestions[currentQuestionIndex];
+            document.getElementById('quiz-korean').textContent = question.question;
+            document.getElementById('quiz-counter').textContent = `Question: ${currentQuestionIndex + 1}/${QUIZ_LENGTH}`;
+            document.getElementById('quiz-score').textContent = `Score: ${quizScore}`;
+            
+            const quizSpeakBtn = document.getElementById('quiz-speak-btn');
+            quizSpeakBtn.onclick = () => speak(question.question);
+
+            const optionsContainer = document.getElementById('quiz-options');
+            optionsContainer.innerHTML = '';
+            question.options.forEach(optionText => {
+                const button = document.createElement('button');
+                button.textContent = optionText;
+                button.className = 'quiz-option text-left p-4 bg-white border-2 border-slate-200 rounded-lg hover:bg-slate-100';
+                button.onclick = () => selectAnswer(button, optionText, question.answer);
+                optionsContainer.appendChild(button);
+            });
+        }
+
+        function selectAnswer(button, selectedAnswer, correctAnswer) {
+            const options = document.querySelectorAll('.quiz-option');
+            options.forEach(opt => opt.disabled = true); // Disable all options
+
+            if (selectedAnswer === correctAnswer) {
+                button.classList.add('correct');
+                quizScore++;
+                // Mark the corresponding phrase as learned
+                const correctPhrase = vocabulary.find(v => v.english === correctAnswer);
+                if (correctPhrase && !learnedProgress[correctPhrase.id]) {
+                    learnedProgress[correctPhrase.id] = true;
+                    saveProgress();
+                }
+            } else {
+                button.classList.add('incorrect');
+                // Highlight the correct answer
+                options.forEach(opt => {
+                    if (opt.textContent === correctAnswer) {
+                        opt.classList.add('correct');
+                    }
+                });
+            }
+
+            setTimeout(() => {
+                currentQuestionIndex++;
+                displayQuestion();
+            }, 1500);
+        }
+
+        function showQuizResults() {
+            document.getElementById('quiz-content').classList.add('hidden');
+            const resultsView = document.getElementById('quiz-results');
+            resultsView.classList.remove('hidden');
+            document.getElementById('final-score').textContent = `You scored ${quizScore} out of ${QUIZ_LENGTH}!`;
+        }
+
+        // --- MATCHING GAME LOGIC ---
+        window.startMatchingGame = function() {
+            switchView('matching-game');
+            document.getElementById('game-win-message').classList.add('hidden');
+            const grid = document.getElementById('matching-grid');
+            grid.classList.remove('hidden');
+            grid.innerHTML = '';
+            moves = 0;
+            matchedPairs = 0;
+            document.getElementById('moves-counter').textContent = moves;
+            lockBoard = false;
+            firstCard = null;
+            secondCard = null;
+
+            const gameVocab = shuffle([...vocabulary]).slice(0, MATCH_PAIRS);
+            let cards = [];
+            gameVocab.forEach((item, index) => {
+                cards.push({ type: 'korean', content: item.korean, pairId: index });
+                cards.push({ type: 'english', content: item.english, pairId: index });
+            });
+            
+            shuffle(cards);
+
+            cards.forEach(cardData => {
+                const cardElement = document.createElement('div');
+                cardElement.className = 'match-card aspect-square';
+                cardElement.dataset.pairId = cardData.pairId;
+
+                cardElement.innerHTML = `
+                    <div class="relative w-full h-full">
+                        <div class="match-card-front absolute w-full h-full bg-purple-400 rounded-lg flex items-center justify-center">
+                            <span class="text-3xl text-white">?</span>
+                        </div>
+                        <div class="match-card-back absolute w-full h-full bg-white border-2 border-purple-300 rounded-lg flex items-center justify-center p-2 text-center ${cardData.type === 'korean' ? 'korean-text text-lg' : 'text-sm'} font-semibold">
+                            ${cardData.content}
+                        </div>
+                    </div>
+                `;
+                cardElement.addEventListener('click', flipCard);
+                grid.appendChild(cardElement);
+            });
+        }
+
+        function flipCard() {
+            if (lockBoard) return;
+            if (this === firstCard) return;
+
+            this.classList.add('flipped');
+            
+            if (!firstCard) {
+                firstCard = this;
+                return;
+            }
+
+            secondCard = this;
+            moves++;
+            document.getElementById('moves-counter').textContent = moves;
+            lockBoard = true;
+
+            checkForMatch();
+        }
+
+        function checkForMatch() {
+            const isMatch = firstCard.dataset.pairId === secondCard.dataset.pairId;
+            isMatch ? disableCards() : unflipCards();
+        }
+
+        function disableCards() {
+            firstCard.removeEventListener('click', flipCard);
+            secondCard.removeEventListener('click', flipCard);
+            firstCard.classList.add('matched');
+            secondCard.classList.add('matched');
+
+            matchedPairs++;
+            if (matchedPairs === MATCH_PAIRS) {
+                setTimeout(showGameWin, 500);
+            }
+            
+            resetBoard();
+        }
+
+        function unflipCards() {
+            setTimeout(() => {
+                firstCard.classList.remove('flipped');
+                secondCard.classList.remove('flipped');
+                resetBoard();
+            }, 1000);
+        }
+
+        function resetBoard() {
+            [firstCard, secondCard, lockBoard] = [null, null, false];
+        }
+
+        function showGameWin() {
+            document.getElementById('matching-grid').classList.add('hidden');
+            const winMessage = document.getElementById('game-win-message');
+            winMessage.classList.remove('hidden');
+
+            document.getElementById('win-stats').textContent = `Completed in ${moves} moves!`;
+        }
+
+
+        // --- INITIALIZATION ---
+        function init() {
+            parseData();
+            loadProgress();
+            showMenu();
+        }
+
+        // Run the app
+        init();
+
+    </script>
+</body>
+</html>
