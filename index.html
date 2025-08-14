@@ -41,26 +41,12 @@
             background-color: #fee2e2; /* Tailwind red-100 */
             border-color: #ef4444; /* Tailwind red-500 */
         }
-        /* Style for matching game cards */
-        .match-card {
-            transform-style: preserve-3d;
-            transition: transform 0.5s;
-            cursor: pointer;
+        /* Style for vocabulary game feedback */
+        #vocab-game-feedback.correct {
+            color: #10b981; /* Tailwind green-500 */
         }
-        .match-card.flipped {
-            transform: rotateY(180deg);
-        }
-        .match-card.matched {
-            transform: rotateY(180deg);
-            opacity: 0.5;
-            cursor: default;
-        }
-        .match-card-front, .match-card-back {
-            -webkit-backface-visibility: hidden;
-            backface-visibility: hidden;
-        }
-        .match-card-back {
-            transform: rotateY(180deg);
+        #vocab-game-feedback.incorrect {
+            color: #ef4444; /* Tailwind red-500 */
         }
     </style>
 </head>
@@ -88,8 +74,8 @@
                 <button onclick="startQuiz()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105">
                     <span class="text-xl">❓</span><br>Quiz
                 </button>
-                <button onclick="startMatchingGame()" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-4 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105">
-                    <span class="text-xl">🎲</span><br>Matching Game
+                <button onclick="startVocabularyGame()" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-4 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                    <span class="text-xl">✍️</span><br>Translation Game
                 </button>
             </div>
              <div class="mt-8 text-center">
@@ -122,7 +108,10 @@
             </div>
             <div class="flex justify-between items-center mt-6">
                 <button onclick="prevCard()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 px-6 rounded-lg transition">&larr; Prev</button>
-                <p id="flashcard-counter" class="text-slate-600 font-medium"></p>
+                <div class="flex flex-col items-center gap-2">
+                    <button onclick="shuffleFlashcards()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg text-sm">Shuffle</button>
+                    <p id="flashcard-counter" class="text-slate-600 font-medium"></p>
+                </div>
                 <button onclick="nextCard()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 px-6 rounded-lg transition">Next &rarr;</button>
             </div>
              <div class="text-center mt-4">
@@ -156,23 +145,32 @@
             </div>
         </div>
 
-        <!-- Matching Game View -->
-        <div id="matching-game-view" class="hidden">
+        <!-- Vocabulary Game View -->
+        <div id="vocabulary-game-view" class="hidden">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-2xl font-bold">Matching Game</h2>
+                <h2 class="text-2xl font-bold">Translation Game</h2>
                 <button onclick="showMenu()" class="text-blue-500 hover:underline">Back to Menu</button>
             </div>
-            <div class="flex justify-between items-center mb-4">
-                <p class="text-lg">Moves: <span id="moves-counter">0</span></p>
-                <button onclick="startMatchingGame()" class="bg-purple-500 text-white px-4 py-2 rounded-lg">New Game</button>
+            <div id="vocab-game-content">
+                <div class="flex justify-between text-lg font-semibold mb-4">
+                    <p id="vocab-game-counter"></p>
+                    <p id="vocab-game-score"></p>
+                </div>
+                <div class="bg-slate-100 p-8 rounded-lg text-center mb-6">
+                    <p class="text-slate-500 text-sm mb-2">Translate this phrase:</p>
+                    <p id="vocab-game-korean" class="korean-text text-3xl font-bold"></p>
+                </div>
+                <form id="vocab-game-form" class="space-y-4">
+                    <input type="text" id="vocab-game-input" class="w-full p-3 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500" placeholder="Type the English translation...">
+                    <button type="submit" id="vocab-game-submit-btn" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg">Check Answer</button>
+                </form>
+                <div id="vocab-game-feedback" class="mt-4 text-center font-semibold h-12 flex items-center justify-center"></div>
+                <button id="vocab-game-next-btn" class="hidden w-full mt-4 bg-slate-500 hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-lg">Next Question</button>
             </div>
-            <div id="matching-grid" class="grid grid-cols-4 gap-2 md:gap-4">
-                <!-- Game cards will be inserted here by JS -->
-            </div>
-            <div id="game-win-message" class="hidden text-center mt-6">
-                <h3 class="text-3xl font-bold text-green-500 mb-4">You Win!</h3>
-                <p id="win-stats" class="text-xl mb-6"></p>
-                <button onclick="startMatchingGame()" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg">Play Again</button>
+             <div id="vocab-game-results" class="hidden text-center">
+                <h3 class="text-3xl font-bold mb-4">Game Complete!</h3>
+                <p id="vocab-final-score" class="text-xl mb-6"></p>
+                <button onclick="startVocabularyGame()" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg">Play Again</button>
             </div>
         </div>
 
@@ -204,7 +202,7 @@
 21,We’ll see.,두고 보자
 22,It’s worth a try.,시도해볼 만해
 23,That’s not the point.,그게 요점이 아니야
-24,I couldn’t agree more.,전적으로 동의해
+24,I’couldn’t agree more.,전적으로 동의해
 25,Let me be clear.,분명히 말할게
 26,You’re getting better.,점점 나아지고 있어
 27,It’s up to you.,그건 네가 결정해
@@ -568,6 +566,7 @@
 
         // Flashcards state
         let currentCardIndex = 0;
+        let flashcardDeck = []; // New state for the current flashcard session deck
 
         // Quiz state
         let quizQuestions = [];
@@ -575,20 +574,18 @@
         let quizScore = 0;
         const QUIZ_LENGTH = 10;
 
-        // Matching game state
-        let firstCard = null;
-        let secondCard = null;
-        let lockBoard = false;
-        let matchedPairs = 0;
-        let moves = 0;
-        const MATCH_PAIRS = 8;
+        // Vocabulary game state
+        let vocabGameQuestions = [];
+        let currentVocabGameIndex = 0;
+        let vocabGameScore = 0;
+        const VOCAB_GAME_LENGTH = 10;
 
         // --- DOM ELEMENTS ---
         const views = {
             'main-menu': document.getElementById('main-menu'),
             'flashcards': document.getElementById('flashcards-view'),
             'quiz': document.getElementById('quiz-view'),
-            'matching-game': document.getElementById('matching-game-view')
+            'vocabulary-game': document.getElementById('vocabulary-game-view')
         };
         const progressBar = document.getElementById('progress-bar');
         const progressText = document.getElementById('progress-text');
@@ -634,9 +631,6 @@
         }
 
         // --- PROGRESS TRACKING ---
-        /**
-         * Loads progress from localStorage.
-         */
         function loadProgress() {
             const savedProgress = localStorage.getItem('koreanLearningProgress');
             if (savedProgress) {
@@ -647,28 +641,20 @@
             updateProgressUI();
         }
 
-        /**
-         * Saves the current progress to localStorage.
-         */
         function saveProgress() {
             localStorage.setItem('koreanLearningProgress', JSON.stringify(learnedProgress));
             updateProgressUI();
         }
 
-        /**
-         * Updates the progress bar and text on the main menu.
-         */
         function updateProgressUI() {
             const learnedCount = Object.values(learnedProgress).filter(Boolean).length;
             const totalCount = vocabulary.length;
             const percentage = totalCount > 0 ? (learnedCount / totalCount) * 100 : 0;
-
             progressBar.style.width = `${percentage}%`;
             progressText.textContent = `${learnedCount} / ${totalCount} phrases learned`;
         }
         
         window.resetProgress = function() {
-            // A simple confirmation dialog. For a real app, a custom modal would be better.
             const isConfirmed = confirm("Are you sure you want to reset all your learning progress? This cannot be undone.");
             if (isConfirmed) {
                 localStorage.removeItem('koreanLearningProgress');
@@ -679,43 +665,28 @@
         }
 
         // --- TTS (Text-to-Speech) using Web Speech API ---
-        /**
-         * Uses the browser's built-in speech synthesis to speak the given text.
-         * @param {string} text The text to be spoken in Korean.
-         */
         function speak(text) {
             if (!text || typeof window.speechSynthesis === 'undefined') {
                 console.error('Speech Synthesis not supported or no text provided.');
-                // In a real app, you might want to show a small, non-blocking notification.
-                // alert("Sorry, your browser doesn't support text-to-speech.");
                 return;
             }
-
-            // Cancel any currently speaking utterance to prevent overlap
             window.speechSynthesis.cancel();
-
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'ko-KR'; // Specify Korean language
-            utterance.rate = 0.9; // Adjust speech rate for clarity (1 is default)
-            
-            // Attempt to find a native Korean voice for better quality
-            // Note: getVoices() can load asynchronously. This is a simple approach.
+            utterance.lang = 'ko-KR';
+            utterance.rate = 0.9;
             const voices = window.speechSynthesis.getVoices();
-            const koreanVoice = voices.find(voice => voice.name === 'Google 한국의');
+            const koreanVoice = voices.find(voice => voice.lang === 'ko-KR');
             if (koreanVoice) {
                 utterance.voice = koreanVoice;
             }
-
             window.speechSynthesis.speak(utterance);
         }
         
-        // Pre-load voices if the browser requires it on some platforms
         if (typeof window.speechSynthesis !== 'undefined') {
             window.speechSynthesis.onvoiceschanged = () => {
                 window.speechSynthesis.getVoices();
             };
         }
-
 
         // --- VIEW CONTROLLERS ---
         window.showMenu = function() {
@@ -726,39 +697,44 @@
         // --- FLASHCARDS LOGIC ---
         window.startFlashcards = function() {
             switchView('flashcards');
+            flashcardDeck = [...vocabulary]; // Create a fresh, ordered deck for the session
+            currentCardIndex = 0;
+            displayCard();
+        }
+
+        window.shuffleFlashcards = function() {
+            shuffle(flashcardDeck);
             currentCardIndex = 0;
             displayCard();
         }
 
         function displayCard() {
-            const card = vocabulary[currentCardIndex];
+            if (flashcardDeck.length === 0) return;
+            const card = flashcardDeck[currentCardIndex];
             document.getElementById('flashcard-english').textContent = card.english;
             document.getElementById('flashcard-korean').textContent = card.korean;
-            document.getElementById('flashcard-counter').textContent = `${currentCardIndex + 1} / ${vocabulary.length}`;
-            
+            document.getElementById('flashcard-counter').textContent = `${currentCardIndex + 1} / ${flashcardDeck.length}`;
             const speakBtn = document.getElementById('flashcard-speak-btn');
             speakBtn.onclick = (e) => {
-                e.stopPropagation(); // Prevent card from flipping when clicking the button
+                e.stopPropagation();
                 speak(card.korean);
             };
-
-            // Reset flip state
             document.querySelector('.flashcard').classList.remove('flipped');
             updateLearnedButton();
         }
 
         window.nextCard = function() {
-            currentCardIndex = (currentCardIndex + 1) % vocabulary.length;
+            currentCardIndex = (currentCardIndex + 1) % flashcardDeck.length;
             displayCard();
         }
 
         window.prevCard = function() {
-            currentCardIndex = (currentCardIndex - 1 + vocabulary.length) % vocabulary.length;
+            currentCardIndex = (currentCardIndex - 1 + flashcardDeck.length) % flashcardDeck.length;
             displayCard();
         }
         
         window.toggleLearned = function() {
-            const currentId = vocabulary[currentCardIndex].id;
+            const currentId = flashcardDeck[currentCardIndex].id;
             learnedProgress[currentId] = !learnedProgress[currentId];
             saveProgress();
             updateLearnedButton();
@@ -766,7 +742,7 @@
 
         function updateLearnedButton() {
             const btn = document.getElementById('mark-learned-btn');
-            const currentId = vocabulary[currentCardIndex].id;
+            const currentId = flashcardDeck[currentCardIndex].id;
             if (learnedProgress[currentId]) {
                 btn.textContent = 'Mark as Unlearned';
                 btn.classList.remove('bg-green-500');
@@ -783,7 +759,6 @@
             switchView('quiz');
             document.getElementById('quiz-content').classList.remove('hidden');
             document.getElementById('quiz-results').classList.add('hidden');
-            
             quizScore = 0;
             currentQuestionIndex = 0;
             generateQuizQuestions();
@@ -813,15 +788,12 @@
                 showQuizResults();
                 return;
             }
-
             const question = quizQuestions[currentQuestionIndex];
             document.getElementById('quiz-korean').textContent = question.question;
             document.getElementById('quiz-counter').textContent = `Question: ${currentQuestionIndex + 1}/${QUIZ_LENGTH}`;
             document.getElementById('quiz-score').textContent = `Score: ${quizScore}`;
-            
             const quizSpeakBtn = document.getElementById('quiz-speak-btn');
             quizSpeakBtn.onclick = () => speak(question.question);
-
             const optionsContainer = document.getElementById('quiz-options');
             optionsContainer.innerHTML = '';
             question.options.forEach(optionText => {
@@ -835,12 +807,10 @@
 
         function selectAnswer(button, selectedAnswer, correctAnswer) {
             const options = document.querySelectorAll('.quiz-option');
-            options.forEach(opt => opt.disabled = true); // Disable all options
-
+            options.forEach(opt => opt.disabled = true);
             if (selectedAnswer === correctAnswer) {
                 button.classList.add('correct');
                 quizScore++;
-                // Mark the corresponding phrase as learned
                 const correctPhrase = vocabulary.find(v => v.english === correctAnswer);
                 if (correctPhrase && !learnedProgress[correctPhrase.id]) {
                     learnedProgress[correctPhrase.id] = true;
@@ -848,14 +818,12 @@
                 }
             } else {
                 button.classList.add('incorrect');
-                // Highlight the correct answer
                 options.forEach(opt => {
                     if (opt.textContent === correctAnswer) {
                         opt.classList.add('correct');
                     }
                 });
             }
-
             setTimeout(() => {
                 currentQuestionIndex++;
                 displayQuestion();
@@ -869,107 +837,81 @@
             document.getElementById('final-score').textContent = `You scored ${quizScore} out of ${QUIZ_LENGTH}!`;
         }
 
-        // --- MATCHING GAME LOGIC ---
-        window.startMatchingGame = function() {
-            switchView('matching-game');
-            document.getElementById('game-win-message').classList.add('hidden');
-            const grid = document.getElementById('matching-grid');
-            grid.classList.remove('hidden');
-            grid.innerHTML = '';
-            moves = 0;
-            matchedPairs = 0;
-            document.getElementById('moves-counter').textContent = moves;
-            lockBoard = false;
-            firstCard = null;
-            secondCard = null;
-
-            const gameVocab = shuffle([...vocabulary]).slice(0, MATCH_PAIRS);
-            let cards = [];
-            gameVocab.forEach((item, index) => {
-                cards.push({ type: 'korean', content: item.korean, pairId: index });
-                cards.push({ type: 'english', content: item.english, pairId: index });
-            });
-            
-            shuffle(cards);
-
-            cards.forEach(cardData => {
-                const cardElement = document.createElement('div');
-                cardElement.className = 'match-card aspect-square';
-                cardElement.dataset.pairId = cardData.pairId;
-
-                cardElement.innerHTML = `
-                    <div class="relative w-full h-full">
-                        <div class="match-card-front absolute w-full h-full bg-purple-400 rounded-lg flex items-center justify-center">
-                            <span class="text-3xl text-white">?</span>
-                        </div>
-                        <div class="match-card-back absolute w-full h-full bg-white border-2 border-purple-300 rounded-lg flex items-center justify-center p-2 text-center ${cardData.type === 'korean' ? 'korean-text text-lg' : 'text-sm'} font-semibold">
-                            ${cardData.content}
-                        </div>
-                    </div>
-                `;
-                cardElement.addEventListener('click', flipCard);
-                grid.appendChild(cardElement);
-            });
+        // --- VOCABULARY GAME LOGIC ---
+        window.startVocabularyGame = function() {
+            switchView('vocabulary-game');
+            document.getElementById('vocab-game-content').classList.remove('hidden');
+            document.getElementById('vocab-game-results').classList.add('hidden');
+            vocabGameScore = 0;
+            currentVocabGameIndex = 0;
+            vocabGameQuestions = shuffle([...vocabulary]).slice(0, VOCAB_GAME_LENGTH);
+            displayVocabGameQuestion();
         }
 
-        function flipCard() {
-            if (lockBoard) return;
-            if (this === firstCard) return;
-
-            this.classList.add('flipped');
-            
-            if (!firstCard) {
-                firstCard = this;
+        function displayVocabGameQuestion() {
+            if (currentVocabGameIndex >= VOCAB_GAME_LENGTH) {
+                showVocabGameResults();
                 return;
             }
-
-            secondCard = this;
-            moves++;
-            document.getElementById('moves-counter').textContent = moves;
-            lockBoard = true;
-
-            checkForMatch();
-        }
-
-        function checkForMatch() {
-            const isMatch = firstCard.dataset.pairId === secondCard.dataset.pairId;
-            isMatch ? disableCards() : unflipCards();
-        }
-
-        function disableCards() {
-            firstCard.removeEventListener('click', flipCard);
-            secondCard.removeEventListener('click', flipCard);
-            firstCard.classList.add('matched');
-            secondCard.classList.add('matched');
-
-            matchedPairs++;
-            if (matchedPairs === MATCH_PAIRS) {
-                setTimeout(showGameWin, 500);
-            }
+            const question = vocabGameQuestions[currentVocabGameIndex];
+            document.getElementById('vocab-game-korean').textContent = question.korean;
+            document.getElementById('vocab-game-counter').textContent = `Question: ${currentVocabGameIndex + 1}/${VOCAB_GAME_LENGTH}`;
+            document.getElementById('vocab-game-score').textContent = `Score: ${vocabGameScore}`;
             
-            resetBoard();
+            const input = document.getElementById('vocab-game-input');
+            const submitBtn = document.getElementById('vocab-game-submit-btn');
+            const nextBtn = document.getElementById('vocab-game-next-btn');
+            const feedbackEl = document.getElementById('vocab-game-feedback');
+            
+            feedbackEl.innerHTML = '';
+            input.value = '';
+            input.disabled = false;
+            submitBtn.classList.remove('hidden');
+            nextBtn.classList.add('hidden');
+            input.focus();
         }
 
-        function unflipCards() {
-            setTimeout(() => {
-                firstCard.classList.remove('flipped');
-                secondCard.classList.remove('flipped');
-                resetBoard();
-            }, 1000);
+        document.getElementById('vocab-game-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            checkVocabGameAnswer();
+        });
+
+        function checkVocabGameAnswer() {
+            const input = document.getElementById('vocab-game-input');
+            const userAnswer = input.value.trim().toLowerCase().replace(/[.,?!]/g, "");
+            const correctAnswer = vocabGameQuestions[currentVocabGameIndex].english.trim().toLowerCase().replace(/[.,?!]/g, "");
+
+            const feedbackEl = document.getElementById('vocab-game-feedback');
+            input.disabled = true;
+            document.getElementById('vocab-game-submit-btn').classList.add('hidden');
+            document.getElementById('vocab-game-next-btn').classList.remove('hidden');
+
+            if (userAnswer === correctAnswer) {
+                feedbackEl.textContent = "Correct!";
+                feedbackEl.className = "mt-4 text-center font-semibold h-12 flex items-center justify-center correct";
+                vocabGameScore++;
+                 const correctPhrase = vocabGameQuestions[currentVocabGameIndex];
+                if (correctPhrase && !learnedProgress[correctPhrase.id]) {
+                    learnedProgress[correctPhrase.id] = true;
+                    saveProgress();
+                }
+            } else {
+                feedbackEl.innerHTML = `Incorrect. The correct answer is: <br><strong class="mt-1 block">${vocabGameQuestions[currentVocabGameIndex].english}</strong>`;
+                feedbackEl.className = "mt-4 text-center font-semibold h-12 flex items-center justify-center incorrect";
+            }
         }
 
-        function resetBoard() {
-            [firstCard, secondCard, lockBoard] = [null, null, false];
+        document.getElementById('vocab-game-next-btn').addEventListener('click', () => {
+            currentVocabGameIndex++;
+            displayVocabGameQuestion();
+        });
+
+        function showVocabGameResults() {
+            document.getElementById('vocab-game-content').classList.add('hidden');
+            const resultsView = document.getElementById('vocab-game-results');
+            resultsView.classList.remove('hidden');
+            document.getElementById('vocab-final-score').textContent = `You scored ${vocabGameScore} out of ${VOCAB_GAME_LENGTH}!`;
         }
-
-        function showGameWin() {
-            document.getElementById('matching-grid').classList.add('hidden');
-            const winMessage = document.getElementById('game-win-message');
-            winMessage.classList.remove('hidden');
-
-            document.getElementById('win-stats').textContent = `Completed in ${moves} moves!`;
-        }
-
 
         // --- INITIALIZATION ---
         function init() {
@@ -978,10 +920,7 @@
             showMenu();
         }
 
-        // Run the app
         init();
-
     </script>
 </body>
 </html>
-
