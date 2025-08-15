@@ -48,6 +48,16 @@
         #vocab-game-feedback.incorrect {
             color: #ef4444; /* Tailwind red-500 */
         }
+        /* Style for recording button */
+        #record-btn.recording {
+            background-color: #ef4444; /* red-500 */
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 flex items-center justify-center min-h-screen p-4">
@@ -67,7 +77,7 @@
                 <p id="progress-text" class="text-sm text-slate-600 mt-2">0 / 0 phrases learned</p>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-2 gap-4">
                 <button onclick="startFlashcards()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-4 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105">
                     <span class="text-xl">📚</span><br>Flashcards
                 </button>
@@ -76,6 +86,9 @@
                 </button>
                 <button onclick="startVocabularyGame()" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-4 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105">
                     <span class="text-xl">✍️</span><br>Translation Game
+                </button>
+                 <button onclick="startSpeakingPractice()" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                    <span class="text-xl">🎤</span><br>Speaking Practice
                 </button>
             </div>
              <div class="mt-8 text-center">
@@ -172,6 +185,37 @@
                 <p id="vocab-final-score" class="text-xl mb-6"></p>
                 <button onclick="startVocabularyGame()" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg">Play Again</button>
             </div>
+        </div>
+
+        <!-- Speaking Practice View -->
+        <div id="speaking-practice-view" class="hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">Speaking Practice</h2>
+                <button onclick="showMenu()" class="text-blue-500 hover:underline">Back to Menu</button>
+            </div>
+            <div class="bg-slate-100 p-8 rounded-lg text-center mb-6">
+                <p class="text-slate-500 text-sm mb-2">Listen and repeat the phrase:</p>
+                <p id="speaking-korean" class="korean-text text-3xl font-bold"></p>
+            </div>
+            <div class="space-y-4">
+                <button id="listen-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon></svg>
+                    Listen to Correct Pronunciation
+                </button>
+                <div class="flex items-center justify-center gap-4">
+                    <button id="record-btn" class="w-1/2 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+                        Record
+                    </button>
+                    <button id="play-recording-btn" disabled class="w-1/2 bg-slate-300 text-slate-500 font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2 cursor-not-allowed">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        Play My Recording
+                    </button>
+                </div>
+                 <audio id="user-audio-player" class="hidden"></audio>
+                 <p id="recording-status" class="text-center text-sm text-slate-500 h-5"></p>
+            </div>
+            <button id="next-sentence-btn" class="w-full mt-6 bg-slate-500 hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-lg">Next Sentence</button>
         </div>
 
     </div>
@@ -580,12 +624,19 @@
         let vocabGameScore = 0;
         const VOCAB_GAME_LENGTH = 10;
 
+        // Speaking Practice state
+        let mediaRecorder;
+        let audioChunks = [];
+        let speakingPracticeDeck = [];
+        let currentSpeakingIndex = 0;
+
         // --- DOM ELEMENTS ---
         const views = {
             'main-menu': document.getElementById('main-menu'),
             'flashcards': document.getElementById('flashcards-view'),
             'quiz': document.getElementById('quiz-view'),
-            'vocabulary-game': document.getElementById('vocabulary-game-view')
+            'vocabulary-game': document.getElementById('vocabulary-game-view'),
+            'speaking-practice': document.getElementById('speaking-practice-view')
         };
         const progressBar = document.getElementById('progress-bar');
         const progressText = document.getElementById('progress-text');
@@ -912,6 +963,92 @@
             resultsView.classList.remove('hidden');
             document.getElementById('vocab-final-score').textContent = `You scored ${vocabGameScore} out of ${VOCAB_GAME_LENGTH}!`;
         }
+
+        // --- SPEAKING PRACTICE LOGIC ---
+        window.startSpeakingPractice = function() {
+            switchView('speaking-practice');
+            speakingPracticeDeck = shuffle([...vocabulary]);
+            currentSpeakingIndex = 0;
+            displaySpeakingSentence();
+        }
+
+        function displaySpeakingSentence() {
+            const sentence = speakingPracticeDeck[currentSpeakingIndex];
+            document.getElementById('speaking-korean').textContent = sentence.korean;
+            
+            // Reset UI
+            const playBtn = document.getElementById('play-recording-btn');
+            playBtn.disabled = true;
+            playBtn.classList.add('bg-slate-300', 'text-slate-500', 'cursor-not-allowed');
+            playBtn.classList.remove('bg-purple-500', 'hover:bg-purple-600');
+            document.getElementById('recording-status').textContent = '';
+        }
+
+        document.getElementById('listen-btn').addEventListener('click', () => {
+            const sentence = speakingPracticeDeck[currentSpeakingIndex];
+            speak(sentence.korean);
+        });
+
+        document.getElementById('record-btn').addEventListener('click', async () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            } else {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    mediaRecorder.start();
+
+                    const recordBtn = document.getElementById('record-btn');
+                    recordBtn.classList.add('recording');
+                    recordBtn.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>
+                        Stop
+                    `;
+                    document.getElementById('recording-status').textContent = 'Recording...';
+
+                    mediaRecorder.addEventListener('dataavailable', event => {
+                        audioChunks.push(event.data);
+                    });
+
+                    mediaRecorder.addEventListener('stop', () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        const player = document.getElementById('user-audio-player');
+                        player.src = audioUrl;
+
+                        const playBtn = document.getElementById('play-recording-btn');
+                        playBtn.disabled = false;
+                        playBtn.classList.remove('bg-slate-300', 'text-slate-500', 'cursor-not-allowed');
+                        playBtn.classList.add('bg-purple-500', 'hover:bg-purple-600');
+                        
+                        recordBtn.classList.remove('recording');
+                        recordBtn.innerHTML = `
+                           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+                           Record
+                        `;
+                        document.getElementById('recording-status').textContent = 'Recording saved!';
+                        
+                        // Stop all tracks on the stream to turn off the mic indicator
+                        stream.getTracks().forEach(track => track.stop());
+                    });
+
+                } catch (err) {
+                    console.error("Error accessing microphone:", err);
+                    document.getElementById('recording-status').textContent = 'Microphone access denied.';
+                }
+            }
+        });
+
+        document.getElementById('play-recording-btn').addEventListener('click', () => {
+            document.getElementById('user-audio-player').play();
+        });
+
+        document.getElementById('next-sentence-btn').addEventListener('click', () => {
+            currentSpeakingIndex = (currentSpeakingIndex + 1) % speakingPracticeDeck.length;
+            displaySpeakingSentence();
+        });
+
 
         // --- INITIALIZATION ---
         function init() {
