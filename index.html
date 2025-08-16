@@ -726,7 +726,8 @@
             utterance.lang = 'ko-KR';
             utterance.rate = 0.9;
             const voices = window.speechSynthesis.getVoices();
-            const koreanVoice = voices.find(voice => voice.lang === 'ko-KR');
+            const koreanVoice = voices.find(voice => voice.name === 'Google 한국의');
+            // const koreanVoice = voices.find(voice => voice.lang === 'ko-KR');
             if (koreanVoice) {
                 utterance.voice = koreanVoice;
             }
@@ -1061,3 +1062,4 @@
     </script>
 </body>
 </html>
+
